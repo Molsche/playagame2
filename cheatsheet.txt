@@ -1,0 +1,1 @@
+python train.py  --img 1616  --batch 1  --epochs 1  --data ../simple_labels_with_sit_train.yaml  --weights yolov5s.pt  --name fullres_labels_with_sit --workers 8 --cache
