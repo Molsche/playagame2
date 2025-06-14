@@ -5,6 +5,9 @@ import cv2
 import time
 import os
 import xml.etree.ElementTree as ET
+import win32gui
+import win32con
+
 
 
 def get_florensia_window_region():
@@ -47,6 +50,9 @@ def capture_region(regions, save=False):
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     cv2.destroyAllWindows()
+
+def save_img_to_location(filename, img):
+    cv2.imwrite(filename, img)
 
 
 def convert_VOC_to_YOLO_box(size, box):
@@ -154,14 +160,9 @@ def convert_voc_to_yolo_format(xml_folder, output_folder):
     return sorted_classes
 #test
 
-if __name__ == "__main__":
-    import torch
-    import torch_directml
 
-    dml = torch_directml.device()
-    a = torch.tensor([1.0, 2.0, 3.0], device=dml)
-    b = torch.tensor([4.0, 5.0, 6.0], device=dml)
-    print(a + b)
-    # print("hello")
+
+if __name__ == "__main__":
+    print("test")
     # convert_voc_to_yolo_format("data/screenshots", "data/labels")
     # get_screenshot_of_whole_game(get_florensia_window_region(), True, "Florensia")
