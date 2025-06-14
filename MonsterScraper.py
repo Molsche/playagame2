@@ -6,7 +6,42 @@ from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from bs4 import BeautifulSoup
 from PIL import Image
+import requests
+import json
 
+def get_all_monsters():
+    url = "https://flandria.wiki/api/graphql"
+
+    query = """
+        query AllMonsters($is_sea: BooleanFilter = {eq: false}) {
+            all_monsters(limit: 1000, order_by: {level: ASC}, filter: {is_sea: $is_sea}) {
+                items {
+                    code
+                    name
+                    model_name
+                    level
+                    health_points
+                    physical_defense
+                    magical_defense
+                    minimum_physical_damage
+                    maximum_physical_damage
+                    minimum_magical_damage
+                    maximum_magical_damage
+                    is_ranged
+                    attack_range
+                    attack_vision_range
+                    nearby_attack_vision_range
+                    experience
+                    attack_vision_range
+                    running_speed
+                    icon
+                }
+            }
+        }"""
+    response = requests.post(url, json={"query": query})
+    # response.raise_for_status()
+    with open('data/land_monster_data.json', 'w') as f:
+        json.dump(response.json(), f)
 
 def scrape_monsters():
     # Konfiguration
@@ -60,3 +95,6 @@ def scrape_monsters():
             print(f"Saved: {name} → {fname}")
 
     driver.quit()
+
+if __name__ == "__main__":
+    get_all_monsters()
