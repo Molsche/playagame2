@@ -2,7 +2,11 @@ import os
 import time
 import io
 import csv
+
+import cv2
+import numpy as np
 from selenium import webdriver
+from selenium.webdriver import FirefoxProfile
 from selenium.webdriver.firefox.options import Options
 from bs4 import BeautifulSoup
 from PIL import Image, ImageGrab
@@ -109,25 +113,31 @@ def scrape_monsters():
 
     driver.quit()
 
-def record_monster_screenshots(monster_name, val_dir, train_dir, duration=70, interval=2, val_every_n=5, mouse_drag_distance=200, region=(100, 200, 600, 800)):
+def record_monster_screenshots(monster_name, val_dir, train_dir, duration=70, interval=0.5, val_every_n=5,
+                               mouse_drag_distance=100, region=(100, 150, 655, 385)):
+    # region Links, oben, rechts, unten
     """
     Nimmt für 'duration' Sekunden alle 'interval' Sekunden einen Screenshot auf.
     Jeder n-te Screenshot wird in val_dir gespeichert, die anderen in train_dir.
     Nach der Hälfte der Zeit wird die Maus gezogen, um die Perspektive zu ändern.
     """
-
     start_time = time.time()
     counter = 0
     switch_time = start_time + duration / 2
     did_drag = False
+
+    left, top, right, bottom = region
+    center_x = left + (right - left) // 2
+    center_y = top + (bottom - top) // 2
 
     while time.time() - start_time < duration:
         now = time.time()
         filename = f"frame_{counter:04d}.png"
         path = os.path.join(val_dir if counter % val_every_n == 0 else train_dir, filename)
 
-        screenshot = ImageGrab.grab(bbox=region)
-        screenshot.save(path)
+        screenshot = ImageGrab.grab(bbox=region) # Links, oben, rechts, unten
+        cropped = crop_to_content(screenshot)
+        cropped.save(path)
 
         print(f"[{monster_name}] Saved screenshot → {path}")
         counter += 1
@@ -136,10 +146,9 @@ def record_monster_screenshots(monster_name, val_dir, train_dir, duration=70, in
         # Perspektive ändern nach halber Zeit
         if not did_drag and now >= switch_time:
             print(f"[{monster_name}] Changing camera perspective...")
-            x, y = pyautogui.size()
-            pyautogui.moveTo(x // 2, y // 2)
+            pyautogui.moveTo(center_x, center_y, duration=0.1)
             pyautogui.mouseDown()
-            pyautogui.moveRel(0, mouse_drag_distance, duration=1)
+            pyautogui.moveRel(0, mouse_drag_distance, duration=0.1)
             pyautogui.mouseUp()
             did_drag = True
 
@@ -147,7 +156,11 @@ def get_screenshots_of_monsters():
     tuples = get_monster_code_name_tupels()
     base_url = "https://flandria.wiki/database/monster/"
     options = Options()
+    profile = FirefoxProfile()
+    profile.set_preference("layout.css.devPixelsPerPx", "0.6")
+    options.profile = profile
     driver = webdriver.Firefox(options=options)
+    driver.fullscreen_window()
     for monster in tuples:
         detail_url = base_url + monster[1]
         output_val_dir = f'data/monster_images/{monster[1]}/val'
@@ -155,7 +168,7 @@ def get_screenshots_of_monsters():
         os.makedirs(output_val_dir, exist_ok=True)
         os.makedirs(output_train_dir, exist_ok=True)
         driver.get(detail_url)
-        time.sleep(2)
+        time.sleep(5)
         print(f"[{monster[0]}] Recording screenshots...")
         record_monster_screenshots(monster[1], output_val_dir, output_train_dir)
 
@@ -172,6 +185,27 @@ def get_monster_code_name_tupels():
                 tuples.append([name, monster_data.get("code", ""), i])
                 icon.append(i)
     return tuples
+
+def crop_to_content(pil_img):
+    # PIL → OpenCV
+    img = np.array(pil_img)
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+    # Maske: Alles was nicht schwarz ist (>10)
+    _, thresh = cv2.threshold(gray, 10, 255, cv2.THRESH_BINARY)
+
+    # Umrandung (Bounding Box)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        print("nothing to crop")
+        return pil_img  # nichts zu croppen
+    x, y, w, h = cv2.boundingRect(np.vstack(contours))
+
+    # Zuschnitt
+    cropped_img = img[y:y+h, x:x+w]
+
+    # OpenCV → PIL zurück
+    return Image.fromarray(cropped_img)
 
 
 if __name__ == "__main__":
