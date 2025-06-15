@@ -1,3 +1,4 @@
+import json
 import time
 import torch
 
@@ -22,7 +23,10 @@ class FloBot:
         self.level_timer = time.time()
 
         self.hp, self.mp, self.level, self.exp = self.detect_all_player_stats()
-        #
+        with open('data/land_monster_data.json', 'r') as f:
+            self.monsters = json.load(f)
+
+
         # print("player level: ", self.level)
         # print("player exp: ", self.exp)
         # print("player hp: ", self.hp[0], "/", self.hp[1])
